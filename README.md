@@ -13,11 +13,12 @@ machine. It runs over **stdio**, searches Parks Canada's public availability, an
 **never pays, and never stores your government credentials**. You confirm and pay
 yourself.
 
-See the repo root for the binding rules and design:
-[`CONSTITUTION.md`](../CONSTITUTION.md), [`AGENTS.md`](../AGENTS.md),
-[`docs/00-overview.md`](../docs/00-overview.md),
-[`docs/01-architecture.md`](../docs/01-architecture.md). The verified Parks Canada
-API contract is in
+For the binding rules and design, see The Open State:
+[`CONSTITUTION.md`](https://github.com/JCrossman/the-open-state/blob/main/CONSTITUTION.md),
+[`AGENTS.md`](AGENTS.md),
+[`docs/00-overview.md`](https://github.com/JCrossman/the-open-state/blob/main/docs/00-overview.md),
+[`docs/01-architecture.md`](https://github.com/JCrossman/the-open-state/blob/main/docs/01-architecture.md).
+The verified Parks Canada API contract is in
 [`docs/parks-canada-api-findings.md`](docs/parks-canada-api-findings.md).
 
 ## What it does
@@ -58,7 +59,8 @@ is written to read cleanly with a screen reader (Constitution Art. 3).
 
 Part of the repo-root pnpm workspace: `packages/core` (provider, booking cart,
 availability) and `packages/bundle` (the MCP server + the `.mcpb`), on
-[`@open-state/kit`](../kit) for the session vault and citizen-driven sign-in.
+[`@open-state/kit`](https://www.npmjs.com/package/@open-state/kit) for the session
+vault and citizen-driven sign-in.
 
 ```bash
 # at the repository root
@@ -77,7 +79,7 @@ The server speaks MCP over stdio and waits for an assistant to connect.
 ## Install in Claude Desktop (the .mcpb)
 
 **Easiest — download the prebuilt bundle.** Grab `open-state-camping.mcpb` from the
-latest [**release**](https://github.com/JCrossman/the-open-state/releases?q=camping)
+latest [**release**](https://github.com/JCrossman/can-fed-camp-mcp/releases)
 (tagged `camping-v*`). In **Claude Desktop → Settings → Extensions**, install that
 file and restart. (When upgrading, remove the old version first, then install the
 new one.)
@@ -85,7 +87,7 @@ new one.)
 **Or build it yourself** from source:
 
 ```bash
-# from open-state-camping/
+# from the repo root
 pnpm --filter @open-state/bundle build
 node packages/bundle/scripts/build-mcpb.mjs
 pnpm dlx @anthropic-ai/mcpb pack packages/bundle/.mcpb-build packages/bundle/open-state-camping.mcpb
@@ -95,7 +97,7 @@ Then install `packages/bundle/open-state-camping.mcpb` the same way.
 
 ## Connect it to Claude Code
 
-The repo root ships a [`.mcp.json`](../.mcp.json) that registers the built bundle
+The repo root ships a [`.mcp.json`](.mcp.json) that registers the built bundle
 for [Claude Code](https://claude.com/claude-code) with a **relative** path (works
 for anyone who clones the repo). Build first (`pnpm -r build`), open the repo in
 Claude Code, and approve the `open-state-camping` server when prompted.

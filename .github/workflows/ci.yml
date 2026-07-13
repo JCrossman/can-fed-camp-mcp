@@ -1,0 +1,48 @@
+name: CI
+
+# Gate every PR to main (and pushes to main) on a clean build + the offline test
+# suite. Tests never touch live public services — recorded fixtures only — so CI is
+# deterministic and never hammers an upstream (Constitution Art. 7.3).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # pnpm first, so setup-node's pnpm cache has a package manager to key on.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # Defense-in-depth: fail fast if obvious PII (real-looking email/phone/SIN)
+      # slipped into a tracked file. Honestly partial — pairs with secret scanning
+      # (credentials) and review (everything else). Needs only node + git.
+      - name: PII tripwire
+        run: node scripts/check-pii.mjs
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (tsc — also typechecks)
+        run: pnpm -r build
+
+      - name: Test (offline, fixture-backed)
+        run: pnpm -r test
