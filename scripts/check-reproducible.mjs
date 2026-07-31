@@ -7,6 +7,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const pnpmCli = process.env["npm_execpath"];
+if (!pnpmCli) {
+  throw new Error("Run this check through pnpm so its executable is pinned.");
+}
 const outputs = [0, 1].map((n) =>
   join(tmpdir(), `open-state-camping-${randomUUID()}-${n}.mcpb`),
 );
@@ -15,7 +19,8 @@ try {
   const hashes = outputs.map((output) => {
     run("node", ["packages/bundle/scripts/build-mcpb.mjs"]);
     run("node", ["scripts/audit-bundle.mjs"]);
-    run("pnpm", [
+    run(process.execPath, [
+      pnpmCli,
       "exec",
       "mcpb",
       "pack",

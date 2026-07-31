@@ -11,6 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const work = mkdtempSync(join(tmpdir(), "open-state-npm-smoke-"));
 const home = join(work, "home");
 const install = join(work, "install");
+const npmCli = join(root, "node_modules/npm/bin/npm-cli.js");
 const pkg = JSON.parse(
   readFileSync(join(root, "packages/bundle/package.json"), "utf8"),
 );
@@ -24,13 +25,14 @@ const manifest = JSON.parse(
 
 try {
   execFileSync(
-    "npm",
-    ["pack", "./packages/bundle", "--pack-destination", work],
+    process.execPath,
+    [npmCli, "pack", "./packages/bundle", "--pack-destination", work],
     { cwd: root, stdio: "inherit" },
   );
   execFileSync(
-    "npm",
+    process.execPath,
     [
+      npmCli,
       "install",
       tarball,
       "--prefix",
@@ -66,8 +68,9 @@ try {
   }
 
   execFileSync(
-    "npm",
+    process.execPath,
     [
+      npmCli,
       "uninstall",
       pkg.name,
       "--prefix",
