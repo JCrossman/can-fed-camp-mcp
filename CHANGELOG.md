@@ -5,6 +5,15 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-07-31
+
+### Security
+
+- Updated the bundled Hono Node adapter to `2.0.10`, closing its aborted
+  WebSocket-handshake memory leak.
+- Overrode the build-only `tmp` dependency to `0.2.7`, closing its temporary
+  path traversal and symbolic-link write advisories.
+
 ## [1.0.2] - 2026-07-31
 
 ### Fixed
@@ -38,7 +47,8 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.2...HEAD
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.3...HEAD
+[1.0.3]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.3
 [1.0.2]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.2
 [1.0.1]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.1
 [1.0.0]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.0
