@@ -132,29 +132,29 @@ export function registerAccountTools(
     async () => {
       try {
         const captured = await captureSession();
-        await sessionExclusive(async () => {
+        return await sessionExclusive(async () => {
           if (!isCaptureGenerationCurrent(captured.generation)) {
             throw new Error(
               "That sign-in was canceled by a disconnect, so I did not save its session.",
             );
           }
           saveSession(captured.session);
+          let who = "";
+          try {
+            const info = await provider.getUserInfo();
+            const name = info && (info["firstName"] || info["email"]);
+            if (name) who = ` You're signed in as ${String(name)}.`;
+          } catch {
+            /* verification is best-effort */
+          }
+          return text(
+            "You're connected." +
+              who +
+              " Your session is saved on this device, encrypted; it never leaves " +
+              "your machine and I never see your password. I can now help you " +
+              "prepare a booking — you always confirm and pay yourself.",
+          );
         });
-        let who = "";
-        try {
-          const info = await provider.getUserInfo();
-          const name = info && (info["firstName"] || info["email"]);
-          if (name) who = ` You're signed in as ${String(name)}.`;
-        } catch {
-          /* verification is best-effort */
-        }
-        return text(
-          "You're connected." +
-            who +
-            " Your session is saved on this device, encrypted; it never leaves " +
-            "your machine and I never see your password. I can now help you " +
-            "prepare a booking — you always confirm and pay yourself.",
-        );
       } catch (err) {
         return text(err instanceof Error ? err.message : String(err));
       }
