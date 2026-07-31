@@ -2,19 +2,19 @@
   "manifest_version": "0.3",
   "name": "open-state-camping",
   "display_name": "The Open State: Camping",
-  "version": "0.17.0",
+  "version": "1.0.0",
   "description": "Find and book Parks Canada campsites in plain language, accessibly — from your own machine.",
-  "long_description": "An independent, public-interest assistive tool. It searches Parks Canada campsite availability in plain language, puts accessibility first, and runs entirely on your own device so your searches come from your own connection. It is not operated by or endorsed by Parks Canada. It never stores your government login and never books on its own — you confirm everything yourself.",
+  "long_description": "An independent, public-interest assistive tool. It searches Parks Canada campsite availability in plain language, puts accessibility first, and runs entirely on your own device so your searches come from your own connection. It is not operated by or endorsed by Parks Canada. It never sees your password or payment details; session cookies are encrypted on your device, and consequential actions require your direct approval.",
   "author": {
     "name": "The Open State"
   },
   "server": {
     "type": "node",
-    "entry_point": "server/index.mjs",
+    "entry_point": "server/standalone/server.js",
     "mcp_config": {
       "command": "node",
       "args": [
-        "${__dirname}/server/index.mjs"
+        "${__dirname}/server/standalone/server.js"
       ]
     }
   },

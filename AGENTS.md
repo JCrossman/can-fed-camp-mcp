@@ -4,7 +4,7 @@ This repository is **Open State: Camping** — a local MCP that helps a citizen 
 and book Parks Canada campsites accessibly. It is an implementation of the **Civic
 Access Protocol** and conforms to **The Open State Constitution**
 (https://github.com/JCrossman/the-open-state/blob/main/CONSTITUTION.md, tag
-`constitution-v1.1`), using `@open-state/kit@^0.2.0`. These rules are binding — if
+`constitution-v1.1`), using `@open-state/kit@1.0.0`. These rules are binding — if
 a change conflicts with one, say so and stop, and cite the article.
 
 - **The human decides (Art. 2).** prepare_booking only *prepares* to the payment

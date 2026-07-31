@@ -7,6 +7,7 @@
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import * as kit from "@open-state/kit";
 
 export type { Session, StoredCookie } from "@open-state/kit";
@@ -23,7 +24,10 @@ const opts = (dir: string): kit.VaultOptions => ({
   keyEnvVar: "OPEN_STATE_SESSION_KEY",
 });
 
-/** Encrypt and persist a session to the vault (0600). */
+/** Shared lease for every consequential action and session mutation. */
+export const sessionExclusive = kit.createExclusiveRunner();
+
+/** Encrypt and persist a session (0600 on POSIX; user ACLs on Windows). */
 export function saveSession(session: Session, dir = defaultVaultDir()): void {
   kit.saveSession(session, opts(dir));
 }
@@ -53,4 +57,18 @@ export function sessionAuthHeaders(session: Session): Record<string, string> {
   const xsrf = xsrfToken(session);
   if (xsrf) headers["X-XSRF-TOKEN"] = xsrf;
   return headers;
+}
+
+/**
+ * Non-secret binding for confirmation capabilities. Cookie values never leave
+ * this function; only a one-way digest is retained by the in-memory gate.
+ */
+export function confirmationContext(): string {
+  const session = loadSession();
+  if (!session) return "disconnected";
+  return createHash("sha256")
+    .update(session.provider)
+    .update("\0")
+    .update(kit.cookieHeader(session))
+    .digest("base64url");
 }

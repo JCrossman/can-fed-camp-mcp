@@ -7,6 +7,7 @@ import {
   GoingToCampClient,
   InvalidInputError,
   ParksCanadaProvider,
+  sendMessage,
   validateNotifyTarget,
   windowNights,
   type FetchLike,
@@ -363,6 +364,35 @@ describe("notify-target hardening", () => {
     "https://evil.example.com/relay",
   ])("rejects unsafe target %s", (bad) => {
     expect(() => validateNotifyTarget(bad, ntfy)).toThrow(InvalidInputError);
+  });
+
+  it("rejects an allowed hostname that resolves to a private address", async () => {
+    let fetched = false;
+    await expect(
+      sendMessage("https://ntfy.sh/topic", "hello", {
+        allowedHosts: ntfy,
+        resolveHost: async () => [{ address: "127.0.0.1", family: 4 }],
+        fetchFn: async () => {
+          fetched = true;
+          return new Response(null, { status: 200 });
+        },
+      }),
+    ).rejects.toThrow(InvalidInputError);
+    expect(fetched).toBe(false);
+  });
+
+  it("refuses redirects when sending to a resolved public notification host", async () => {
+    let redirect: RequestRedirect | undefined;
+    const sent = await sendMessage("https://ntfy.sh/topic", "hello", {
+      allowedHosts: ntfy,
+      resolveHost: async () => [{ address: "8.8.8.8", family: 4 }],
+      fetchFn: async (_input, init) => {
+        redirect = init?.redirect;
+        return new Response(null, { status: 200 });
+      },
+    });
+    expect(sent).toBe(true);
+    expect(redirect).toBe("error");
   });
 });
 

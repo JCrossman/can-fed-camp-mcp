@@ -3,6 +3,7 @@
  * being turned into an SSRF / open-relay primitive (docs/m2-validation-findings.md).
  */
 import { isIP } from "node:net";
+import { lookup } from "node:dns/promises";
 import { InvalidInputError } from "./errors.js";
 import { randomTokenUrlSafe } from "./util.js";
 
@@ -84,8 +85,31 @@ export function generateChannel(ntfyBase: string): NotificationChannel {
 export async function sendMessage(
   target: string,
   message: string,
-  opts: { title?: string; timeoutMs?: number; fetchFn?: typeof fetch } = {},
+  opts: {
+    title?: string;
+    timeoutMs?: number;
+    fetchFn?: typeof fetch;
+    allowedHosts?: ReadonlySet<string>;
+    resolveHost?: (
+      hostname: string,
+    ) => Promise<ReadonlyArray<{ address: string; family: number }>>;
+  } = {},
 ): Promise<boolean> {
+  if (opts.allowedHosts) validateNotifyTarget(target, opts.allowedHosts);
+  const url = new URL(target);
+  const resolveHost =
+    opts.resolveHost ??
+    (async (hostname: string) =>
+      lookup(hostname, { all: true, verbatim: true }) as Promise<
+        Array<{ address: string; family: number }>
+      >);
+  const addresses = await resolveHost(url.hostname);
+  if (addresses.length === 0 || addresses.some((a) => isBlockedIpLiteral(a.address))) {
+    throw new InvalidInputError(
+      "The notification host resolved to a private, internal, or unavailable " +
+        "address, so I did not send to it.",
+    );
+  }
   const headers: Record<string, string> = {};
   if (opts.title) headers["Title"] = opts.title;
   const doFetch = opts.fetchFn ?? fetch;
@@ -93,6 +117,7 @@ export async function sendMessage(
     method: "POST",
     body: message,
     headers,
+    redirect: "error",
     signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
   });
   return resp.ok;

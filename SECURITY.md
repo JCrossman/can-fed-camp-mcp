@@ -56,8 +56,9 @@ by definition, in scope.
 
 ## Supported versions
 
-This project is pre-1.0 and moves fast. Security fixes land on `main`; we don't
-backport to older tags. Pin a tag for reproducibility, but track `main` for fixes.
+Version 1.x receives security fixes on the latest minor release. We may backport a
+critical fix to the preceding minor release when an immediate upgrade would be
+disruptive; older releases are unsupported. See [`SUPPORT.md`](SUPPORT.md).
 
 *No citizen should be excluded from what is already theirs — and no citizen should
 be put at risk reaching it.*

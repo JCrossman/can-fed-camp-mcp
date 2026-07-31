@@ -1,12 +1,19 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { ParksCanadaProvider } from "@open-state/core";
-import { AlertStore } from "../src/alerts/store.js";
+import { AlertStore, AlertStoreError } from "../src/alerts/store.js";
+import { pollAlertsOnce } from "../src/alerts/poller.js";
 import { registerAlertTools } from "../src/alert-tools.js";
 import type { BundleConfig } from "../src/config.js";
 
@@ -69,15 +76,62 @@ describe("AlertStore", () => {
     new AlertStore(dir).add(base);
     expect(new AlertStore(dir).countActive()).toBe(1);
   });
+
+  it("writes atomically with owner-only POSIX permissions", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ose-alerts-"));
+    new AlertStore(dir).add(base);
+    const path = join(dir, "alerts.json");
+    expect(JSON.parse(readFileSync(path, "utf8"))).toHaveLength(1);
+    if (process.platform !== "win32") {
+      expect(statSync(path).mode & 0o777).toBe(0o600);
+    }
+  });
+
+  it("surfaces corruption without replacing the file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ose-alerts-"));
+    const path = join(dir, "alerts.json");
+    writeFileSync(path, "{not valid json", { mode: 0o600 });
+    const store = new AlertStore(dir);
+    expect(() => store.listAll()).toThrow(AlertStoreError);
+    expect(readFileSync(path, "utf8")).toBe("{not valid json");
+  });
+
+  it("keeps a watch active until notification delivery succeeds", async () => {
+    const store = tempStore();
+    const alert = store.add({ ...base, notifyTarget: "https://ntfy.sh/topic" });
+    const provider = {
+      searchSites: async () => [{}],
+    } as unknown as ParksCanadaProvider;
+
+    await pollAlertsOnce(provider, CONFIG, store, async () => false);
+    expect(store.get(alert.id)?.status).toBe("active");
+    expect(store.get(alert.id)?.deliveryAttempts).toBe(1);
+    expect(store.get(alert.id)?.lastResult).toContain("will retry");
+
+    await pollAlertsOnce(provider, CONFIG, store, async () => true);
+    expect(store.get(alert.id)?.status).toBe("fired");
+    expect(store.get(alert.id)?.lastError).toBeNull();
+  });
 });
 
 describe("alert tools", () => {
-  async function connect(store: AlertStore): Promise<Client> {
+  async function connect(
+    store: AlertStore,
+    decision: "accept" | "decline" = "accept",
+  ): Promise<Client> {
     const server = new McpServer({ name: "t", version: "0" });
     registerAlertTools(server, new ParksCanadaProvider({}), CONFIG, store);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     await server.connect(st);
-    const client = new Client({ name: "t", version: "0" });
+    const client = new Client(
+      { name: "t", version: "0" },
+      { capabilities: { elicitation: { form: {} } } },
+    );
+    client.setRequestHandler(ElicitRequestSchema, async () =>
+      decision === "accept"
+        ? { action: "accept", content: { approved: true } }
+        : { action: "decline" },
+    );
     await client.connect(ct);
     return client;
   }
@@ -87,19 +141,19 @@ describe("alert tools", () => {
     };
     return r.content.map((x) => x.text).join("\n");
   };
-
   it("create_alert (silent watch) → list → delete", async () => {
     const store = tempStore();
     const c = await connect(store);
-    const created = await callText(c, "create_alert", {
+    const args = {
       campground_id: "-2147483644",
       start_date: "2099-07-17",
       end_date: "2099-07-19",
       party_size: 2,
-    });
-    expect(created).toMatch(/watch id is \w+/);
-    expect(created).toContain("list your alerts"); // silent-watch guidance
-    const id = created.match(/watch id is (\w+)/)![1]!;
+    };
+    const created = await callText(c, "create_alert", args);
+    expect(created).toMatch(/Saved watch \w+/);
+    expect(created).toContain("list_alerts");
+    const id = created.match(/Saved watch (\w+)/)![1]!;
 
     const listed = await callText(c, "list_alerts", {});
     expect(listed).toContain("1 saved alert");
@@ -120,10 +174,29 @@ describe("alert tools", () => {
         end_date: "2099-07-19",
         party_size: 1,
       });
+
     await mk();
     await mk(); // cap is 2
-    const third = await mk();
+    const third = await callText(c, "create_alert", {
+      campground_id: "-1",
+      start_date: "2099-07-17",
+      end_date: "2099-07-19",
+      party_size: 1,
+    });
     expect(third).toMatch(/most campgrounds I can keep track of/);
+  });
+
+  it("persists nothing when the citizen declines the trusted preview", async () => {
+    const store = tempStore();
+    const c = await connect(store, "decline");
+    const out = await callText(c, "create_alert", {
+      campground_id: "-1",
+      start_date: "2099-07-17",
+      end_date: "2099-07-19",
+      party_size: 1,
+    });
+    expect(out).toContain("declined");
+    expect(store.countActive()).toBe(0);
   });
 
   it("rejects a notify_target on a non-allowed host (SSRF guard)", async () => {

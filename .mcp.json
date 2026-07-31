@@ -2,7 +2,7 @@
   "mcpServers": {
     "open-state-camping": {
       "command": "node",
-      "args": ["packages/bundle/dist/server.js"]
+      "args": ["packages/bundle/standalone/server.js"]
     }
   }
 }

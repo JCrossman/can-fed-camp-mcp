@@ -7,7 +7,8 @@
  * cart, the account/occupant/party wizard) through the platform's own API, then
  * hand the citizen their cart in their own browser to review and pay. Two-phase by
  * design (Constitution Art. 2): the first call only *prepares and describes*;
- * nothing is held or written until the citizen calls again with `confirm: true`.
+ * nothing is held or written until the trusted MCP host shows the exact preview
+ * and reports the citizen's explicit acceptance.
  * We never enter a card or pay (Art. 2, Art. 10) — and because a reservation only
  * exists once paid, preparing it incurs no fee.
  *
@@ -18,7 +19,10 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { confirmGated, type TwoPhaseOutcome } from "@open-state/kit";
+import {
+  confirmGated,
+  type TwoPhaseOutcome,
+} from "@open-state/kit";
 import {
   addDays,
   BOOKING_CATEGORY_ID,
@@ -35,7 +39,12 @@ import {
   type ShopperEnvelope,
 } from "@open-state/core";
 import { openCheckout } from "./session/capture.js";
-import { loadSession } from "./session/vault.js";
+import {
+  confirmationContext,
+  loadSession,
+  sessionExclusive,
+} from "./session/vault.js";
+import { citizenApproval } from "./approval.js";
 import { stayDatesProblem, withWeekday } from "./format.js";
 
 /** One night of a backcountry itinerary (a zone for a date range). */
@@ -60,7 +69,6 @@ interface PrepareBookingArgs {
   product_id?: string;
   itinerary?: ItineraryLeg[];
   entry_point_id?: string;
-  confirm?: boolean;
 }
 
 /**
@@ -80,6 +88,10 @@ export function registerBookingTools(server: McpServer, provider: ParksCanadaPro
   const handle = confirmGated<PrepareBookingArgs, PreparedBooking>({
     prepare: (args) => prepareBooking(args, provider),
     execute: (_args, outcome) => executeBooking(outcome, provider),
+  }, {
+    context: confirmationContext,
+    approve: citizenApproval(server),
+    exclusive: sessionExclusive,
   });
 
   server.registerTool(
@@ -98,8 +110,8 @@ export function registerBookingTools(server: McpServer, provider: ParksCanadaPro
         "which is the entire purpose of this tool, so don't tell the citizen to go " +
         "do it themselves on the website. ALWAYS call this first WITHOUT confirm to " +
         "show the citizen exactly what will be booked (site, dates, party, who the " +
-        "reservation is for). Only after they explicitly confirm, call again with " +
-        "confirm: true — that holds the site and opens their cart to pay. Preparing " +
+        "reservation is for) in a trusted confirmation prompt. Only explicit " +
+        "acceptance in that prompt holds the site and opens the cart to pay. Preparing " +
         "holds nothing and costs nothing; a reservation (and any fee) only exists " +
         "once the citizen pays. Requires connect_account first (if they aren't " +
         "connected, this tool will say so — then call connect_account, don't give " +
@@ -168,10 +180,6 @@ export function registerBookingTools(server: McpServer, provider: ParksCanadaPro
               "(numeric id). If the area has only one, it's used automatically; if " +
               "several, prepare_booking will list them and ask.",
           ),
-        confirm: z
-          .boolean()
-          .optional()
-          .describe("Only true after the citizen has seen the summary and confirmed."),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },

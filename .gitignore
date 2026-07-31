@@ -11,6 +11,8 @@ node_modules/
 
 # Build output
 dist/
+standalone/
+.standalone-components.json
 
 # Live capture artifacts (HAR with session cookies / PII) - never commit
 docs/captures/
