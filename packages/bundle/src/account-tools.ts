@@ -87,8 +87,9 @@ export function registerAccountTools(
         };
       },
       async execute(_args, outcome) {
+        let browserStateRemoved: boolean;
         try {
-          await clearBrowserProfile();
+          browserStateRemoved = await clearBrowserProfile();
         } catch (err) {
           return (
             "I couldn't remove the dedicated Chrome profile, so I left the encrypted " +
@@ -98,7 +99,7 @@ export function registerAccountTools(
           );
         }
         const removed = clearSession();
-        return removed || outcome.prepared?.hadProfile
+        return removed || browserStateRemoved || outcome.prepared?.hadProfile
           ? "Disconnected. The encrypted session and dedicated Chrome authentication state have been removed from this device."
           : "There was no saved authentication state to remove.";
       },
