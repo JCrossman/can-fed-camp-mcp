@@ -7,7 +7,7 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,7 +42,7 @@ const forbiddenNames = new Set([
   "vault.key",
 ]);
 for (const path of walk(stage)) {
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  const name = basename(path);
   if (forbiddenNames.has(name) || /\.(pem|p12|pfx|key)$/i.test(name)) {
     throw new Error(`Packaged server contains sensitive file: ${relative(stage, path)}`);
   }
