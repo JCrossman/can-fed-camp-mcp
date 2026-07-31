@@ -5,6 +5,13 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-31
+
+### Fixed
+
+- Matched the case-sensitive MCP Registry namespace and npm ownership metadata
+  to the canonical `JCrossman` GitHub account name.
+
 ## [1.0.0] - 2026-04-17
 
 ### Added
@@ -24,5 +31,6 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.0...HEAD
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.1...HEAD
+[1.0.1]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.1
 [1.0.0]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.0

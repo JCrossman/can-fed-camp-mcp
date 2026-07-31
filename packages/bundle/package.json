@@ -1,6 +1,6 @@
 {
   "name": "@open-state/camping",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "type": "module",
   "engines": {
@@ -17,7 +17,7 @@
     "url": "https://github.com/JCrossman/can-fed-camp-mcp.git",
     "directory": "packages/bundle"
   },
-  "mcpName": "io.github.jcrossman/open-state-camping",
+  "mcpName": "io.github.JCrossman/open-state-camping",
   "keywords": ["mcp", "parks-canada", "camping", "accessibility", "civic-tech"],
   "publishConfig": {
     "access": "public",
