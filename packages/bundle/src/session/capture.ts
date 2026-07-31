@@ -179,7 +179,7 @@ export async function clearBrowserProfile(): Promise<boolean> {
     if (dirname(profile) !== home) {
       throw new Error("Refusing to remove a browser profile outside OPEN_STATE_HOME.");
     }
-    if (!existsSync(profile)) return false;
+    if (!existsSync(profile)) return captures.length > 0;
     rmSync(profile, { recursive: true, force: true });
     return true;
   } finally {

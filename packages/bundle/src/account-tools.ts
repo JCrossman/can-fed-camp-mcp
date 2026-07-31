@@ -73,13 +73,11 @@ export function registerAccountTools(
   const disconnectAccount = confirmGated<DisconnectArgs, PreparedDisconnect>(
     {
       async prepare() {
-        if (!loadSession() && !browserProfileExists()) {
-          return { problem: "There is no saved Parks Canada session to remove." };
-        }
         const hadProfile = browserProfileExists();
         return {
           summary:
             "Here's what I'll disconnect:\n" +
+            "- Cancel any Parks Canada sign-in currently in progress.\n" +
             "- Remove the encrypted Parks Canada session from this device.\n" +
             (hadProfile
               ? "- Close managed checkout windows and remove this app's dedicated Chrome profile."
