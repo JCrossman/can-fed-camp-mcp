@@ -23,12 +23,14 @@ in search or alert text.
 The default directory is `~/.open-state-camping`, or `OPEN_STATE_HOME` when set.
 It may contain:
 
-- an AES-256-GCM encrypted Parks Canada cookie session and a mode-`0600`
-  encryption key file (unless `OPEN_STATE_SESSION_KEY` supplies the key);
+- an AES-256-GCM encrypted Parks Canada cookie session and encryption key file
+  (mode `0600` on POSIX systems; Windows uses the account's filesystem ACLs),
+  unless `OPEN_STATE_SESSION_KEY` supplies the key;
 - `browser-profile/`, a dedicated Chrome profile used for citizen-driven sign-in
   and checkout;
 - `alerts.json`, containing alert criteria, status, retry information, and an
-  optional notification URL. It contains no Parks Canada password.
+  optional notification URL. It is mode `0600` on POSIX systems and governed by
+  the user's filesystem ACLs on Windows. It contains no Parks Canada password.
 
 The random suffix of an automatic ntfy topic acts as a bearer secret. Anyone
 with that URL may subscribe, so keep it private. Notification delivery is

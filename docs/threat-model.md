@@ -104,10 +104,10 @@ The default application directory is `~/.open-state-camping`, overridden by
 
 | Data | Location | Protection | Removal |
 |---|---|---|---|
-| Captured session | `session.enc` | Authenticated encryption; file mode 0600 | `disconnect_account` |
+| Captured session | `session.enc` | Authenticated encryption; mode 0600 on POSIX, user ACLs on Windows | `disconnect_account` |
 | Vault key | Local kit-managed key or `OPEN_STATE_SESSION_KEY` | Device-local secret | Kit-specific removal or environment cleanup |
 | Browser authentication state | `browser-profile/` | Dedicated local Chrome profile; directory mode restricted where supported | `disconnect_account` |
-| Alerts | `alerts.json` | Local file mode 0600; atomic writes | `delete_alert` or uninstall cleanup |
+| Alerts | `alerts.json` | Mode 0600 on POSIX/user ACLs on Windows; atomic writes | `delete_alert` or uninstall cleanup |
 | Prepared confirmation snapshot | Process memory for one tool call | Structured clone; trusted host elicitation | Acceptance, decline, cancellation, or tool completion |
 
 The application has no hosted database, analytics, telemetry, or maintainer
@@ -176,8 +176,9 @@ timeout, and minimal message content.
 
 **Threat:** A partial write silently erases alerts or exposes permissive files.
 
-**Mitigation:** Atomic temporary-file plus rename, mode 0600, typed visible read
-errors, bounded file size, schema validation, and recovery guidance.
+**Mitigation:** Atomic temporary-file plus rename, mode 0600 on POSIX/user ACLs
+on Windows, typed visible read errors, bounded file size, schema validation, and
+recovery guidance.
 
 ### Upstream response manipulation
 

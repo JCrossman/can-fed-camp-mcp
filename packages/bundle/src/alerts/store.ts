@@ -4,7 +4,7 @@
  * only contact detail kept is an optional `notifyTarget` (a notification link the
  * citizen controls, e.g. an ntfy.sh topic). No account, password, or government
  * credential is ever stored (Art. 1). Lives next to the session vault on the citizen's
- * own device; the file is created 0600.
+ * own device; the file is 0600 on POSIX and governed by user ACLs on Windows.
  *
  * A JSON file is enough for the
  * local bundle's small list of watches.

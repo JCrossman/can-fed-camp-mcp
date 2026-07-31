@@ -27,7 +27,7 @@ const opts = (dir: string): kit.VaultOptions => ({
 /** Shared lease for every consequential action and session mutation. */
 export const sessionExclusive = kit.createExclusiveRunner();
 
-/** Encrypt and persist a session to the vault (0600). */
+/** Encrypt and persist a session (0600 on POSIX; user ACLs on Windows). */
 export function saveSession(session: Session, dir = defaultVaultDir()): void {
   kit.saveSession(session, opts(dir));
 }

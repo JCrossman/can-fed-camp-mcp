@@ -77,12 +77,14 @@ describe("AlertStore", () => {
     expect(new AlertStore(dir).countActive()).toBe(1);
   });
 
-  it("writes atomically with owner-only permissions", () => {
+  it("writes atomically with owner-only POSIX permissions", () => {
     const dir = mkdtempSync(join(tmpdir(), "ose-alerts-"));
     new AlertStore(dir).add(base);
     const path = join(dir, "alerts.json");
     expect(JSON.parse(readFileSync(path, "utf8"))).toHaveLength(1);
-    expect(statSync(path).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(statSync(path).mode & 0o777).toBe(0o600);
+    }
   });
 
   it("surfaces corruption without replacing the file", () => {
