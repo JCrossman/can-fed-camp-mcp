@@ -5,4 +5,4 @@
  * scripts/build-mcpb.mjs already refuses to package a package.json/manifest mismatch.
  * Bump all three together when releasing.
  */
-export const VERSION = "1.0.1";
+export const VERSION = "1.0.2";

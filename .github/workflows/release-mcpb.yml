@@ -75,7 +75,8 @@ jobs:
           shasum -a 256 \
             open-state-camping.mcpb \
             .mcpb-build/inventory.json \
-            .mcpb-build/sbom.cdx.json > SHA256SUMS
+            .mcpb-build/sbom.cdx.json |
+            sed 's#  \.mcpb-build/#  #' > SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1

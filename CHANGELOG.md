@@ -5,6 +5,13 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-31
+
+### Fixed
+
+- Made release checksums use the flat asset names produced by GitHub Releases,
+  so a downloaded release verifies directly with `shasum -c SHA256SUMS`.
+
 ## [1.0.1] - 2026-07-31
 
 ### Fixed
@@ -31,6 +38,7 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.1...HEAD
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.2...HEAD
+[1.0.2]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.2
 [1.0.1]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.1
 [1.0.0]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.0
