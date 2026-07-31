@@ -11,6 +11,7 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm --filter @open-state/core build && pnpm -r run typecheck",
+    "check:lockfile": "node scripts/check-lockfile.mjs",
     "check:pii": "node scripts/check-pii.mjs",
     "audit:bundle": "node scripts/audit-bundle.mjs",
     "audit:mcpb": "node scripts/audit-mcpb.mjs",

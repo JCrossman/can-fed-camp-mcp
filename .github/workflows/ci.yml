@@ -46,6 +46,9 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Check public lockfile sources
+        run: pnpm check:lockfile
+
       - name: Build (tsc — also typechecks)
         run: pnpm -r build
 

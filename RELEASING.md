@@ -17,6 +17,7 @@ its approval API is a constitutional security boundary.
 
    ```bash
    pnpm check:pii
+   pnpm check:lockfile
    pnpm -r build
    pnpm -r test
    pnpm --filter @open-state/camping pack:mcpb
