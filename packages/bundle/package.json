@@ -1,32 +1,52 @@
 {
-  "name": "@open-state/bundle",
-  "version": "0.17.0",
-  "private": true,
+  "name": "@open-state/camping",
+  "version": "1.0.0",
+  "private": false,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "description": "The Open State: Camping - local MCP bundle (.mcpb): anonymous search + booking completion for Parks Canada.",
   "bin": {
-    "open-state-camping": "./dist/server.js"
+    "open-state-camping": "./standalone/server.js"
   },
+  "license": "MIT",
+  "homepage": "https://github.com/JCrossman/can-fed-camp-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JCrossman/can-fed-camp-mcp.git",
+    "directory": "packages/bundle"
+  },
+  "mcpName": "io.github.jcrossman/open-state-camping",
+  "keywords": ["mcp", "parks-canada", "camping", "accessibility", "civic-tech"],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "LICENSE",
+    "standalone",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/build-standalone.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "start": "node dist/server.js",
+    "start": "node standalone/server.js",
     "dev": "tsx src/server.ts",
-    "pack": "node scripts/build-mcpb.mjs && pnpm dlx @anthropic-ai/mcpb pack .mcpb-build open-state-camping.mcpb"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@open-state/core": "workspace:*",
-    "@open-state/kit": "^0.2.0",
-    "puppeteer-core": "^25.1.0",
-    "zod": "^4.4.3"
+    "pack:mcpb": "node scripts/build-mcpb.mjs && pnpm exec mcpb pack .mcpb-build open-state-camping.mcpb && node ../../scripts/normalize-mcpb.mjs open-state-camping.mcpb",
+    "prepack": "pnpm run build"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "esbuild": "^0.28.1",
-    "tsx": "^4.22.3",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.9"
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@open-state/core": "workspace:*",
+    "@open-state/kit": "1.0.1",
+    "@types/node": "26.1.1",
+    "esbuild": "0.28.1",
+    "puppeteer-core": "25.3.0",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
   }
 }

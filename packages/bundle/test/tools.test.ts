@@ -173,8 +173,8 @@ describe("bundle MCP server", () => {
   it("search_backcountry surfaces available zones with accessibility + booking ids", async () => {
     const out = await callText(await connectClient(), "search_backcountry", {
       query: "Broken Group",
-      start_date: "2026-07-15",
-      end_date: "2026-07-17",
+      start_date: "2099-07-15",
+      end_date: "2099-07-17",
       party_size: 1,
     });
     expect(out).toContain("Hand Island");
@@ -201,8 +201,8 @@ describe("bundle MCP server", () => {
   it("search_day_use lists open timed slots with spots remaining", async () => {
     const out = await callText(await connectClient(), "search_day_use", {
       query: "Moraine Lake shuttle",
-      start_date: "2026-07-15",
-      end_date: "2026-07-16",
+      start_date: "2099-07-15",
+      end_date: "2099-07-16",
       party_size: 2,
     });
     expect(out).toContain("Moraine Lake");
@@ -219,7 +219,7 @@ describe("bundle MCP server", () => {
     // Regression: omitting end_date (Day Use is one day) must search, not re-list products.
     const out = await callText(await connectClient(), "search_day_use", {
       query: "Moraine Lake shuttle",
-      start_date: "2026-07-15",
+      start_date: "2099-07-15",
       party_size: 2,
     });
     expect(out).toMatch(/spot\(s\) left/);
@@ -230,7 +230,7 @@ describe("bundle MCP server", () => {
   it("search_backcountry returns zones from query+start_date with NO end_date", async () => {
     const out = await callText(await connectClient(), "search_backcountry", {
       query: "Broken Group",
-      start_date: "2026-07-15",
+      start_date: "2099-07-15",
       party_size: 1,
     });
     expect(out).toContain("Hand Island");

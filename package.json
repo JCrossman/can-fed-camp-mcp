@@ -1,14 +1,27 @@
 {
   "name": "can-fed-camp-mcp",
-  "version": "0.17.0",
+  "version": "1.0.0",
   "private": true,
   "description": "The Open State: Camping — a local MCP for accessible Parks Canada campsite search and booking. Conforms to the Civic Access Protocol.",
-  "packageManager": "pnpm@10.33.0",
-  "engines": { "node": ">=20" },
+  "packageManager": "pnpm@10.34.3",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "typecheck": "pnpm -r run typecheck",
-    "check:pii": "node scripts/check-pii.mjs"
+    "typecheck": "pnpm --filter @open-state/core build && pnpm -r run typecheck",
+    "check:pii": "node scripts/check-pii.mjs",
+    "audit:bundle": "node scripts/audit-bundle.mjs",
+    "audit:mcpb": "node scripts/audit-mcpb.mjs",
+    "smoke:bundle": "node scripts/smoke-bundle.mjs",
+    "smoke:npm": "node scripts/smoke-npm-package.mjs",
+    "check:reproducible": "node scripts/check-reproducible.mjs"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2",
+    "fflate": "0.8.2",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "npm": "11.18.0"
   }
 }

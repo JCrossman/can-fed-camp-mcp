@@ -9,9 +9,9 @@ control.
 
 It is a **local MCP bundle** (`.mcpb`) you add to your assistant on your own
 machine. It runs over **stdio**, searches Parks Canada's public availability, and
-**prepares** a booking right up to the payment screen in *your own* session — it
-**never pays, and never stores your government credentials**. You confirm and pay
-yourself.
+**prepares** a booking right up to the payment screen in *your own* session. It
+never sees your password or payment details. Session cookies are encrypted on
+your device; you directly approve consequential actions and pay yourself.
 
 For the binding rules and design, see The Open State:
 [`CONSTITUTION.md`](https://github.com/JCrossman/the-open-state/blob/main/CONSTITUTION.md),
@@ -41,8 +41,9 @@ Plain-language tools, grouped:
 - **Account (your session):** `connect_account` opens *your own* browser to sign in
   yourself; the session is stored encrypted in a local vault. `disconnect_account`,
   `connection_status`.
-- **Booking:** `prepare_booking` assembles the cart and drives it to the **payment
-  screen** — you review and pay. It never pays on its own (Constitution Art. 2).
+- **Booking:** `prepare_booking` shows the exact action in a trusted host form,
+  then assembles the cart and drives it to the **payment screen** only after your
+  approval. You review and pay (Constitution Art. 2).
 - **Alerts:** `create_alert` / `list_alerts` / `delete_alert` — watch a campground
   and get pinged when a cancellation opens a site.
 - **Policies:** `get_reservation_policies` — Parks Canada's reservation rules in
@@ -71,10 +72,23 @@ pnpm -r build
 ## Run (local, stdio)
 
 ```bash
-node packages/bundle/dist/server.js
+node packages/bundle/standalone/server.js
 ```
 
 The server speaks MCP over stdio and waits for an assistant to connect.
+
+## Install from npm
+
+Node.js 20 or newer is required. Configure any stdio MCP client to run:
+
+```bash
+npx --yes @open-state/camping@1.0.0
+```
+
+For upgrades, change the pinned version and restart the client. To uninstall,
+remove the MCP client configuration. Local state is intentionally retained;
+after disconnecting, delete `~/.open-state-camping` to remove alerts and all
+remaining data. See [`PRIVACY.md`](PRIVACY.md).
 
 ## Install in Claude Desktop (the .mcpb)
 
@@ -88,9 +102,8 @@ new one.)
 
 ```bash
 # from the repo root
-pnpm --filter @open-state/bundle build
-node packages/bundle/scripts/build-mcpb.mjs
-pnpm dlx @anthropic-ai/mcpb pack packages/bundle/.mcpb-build packages/bundle/open-state-camping.mcpb
+pnpm --filter @open-state/camping build
+pnpm --filter @open-state/camping pack:mcpb
 ```
 
 Then install `packages/bundle/open-state-camping.mcpb` the same way.
@@ -115,6 +128,11 @@ Claude Code, and approve the `open-state-camping` server when prompted.
 To book: ask the assistant to **prepare** it; it opens *your* cart at the Parks
 Canada payment screen, where you sign in (if you haven't via `connect_account`),
 review, and pay yourself.
+
+Consequential tools require MCP form elicitation so the host can show the
+prepared action directly to you. Hosts without it retain anonymous search and
+read-only tools but intentionally cannot book, update/disconnect an account, or
+create/delete alerts. See [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Alerts
 
@@ -159,6 +177,15 @@ pnpm -r test
 Tests run fully offline against recorded fixtures — no live network calls. Booking
 carts are diffed key-for-key against real captured sessions.
 
+## Public project policies
+
+- [Privacy and local data deletion](PRIVACY.md)
+- [Security reporting and supported versions](SECURITY.md)
+- [Compatibility](COMPATIBILITY.md)
+- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and
+  [support](SUPPORT.md)
+- [Release history](CHANGELOG.md) and [release process](RELEASING.md)
+
 ## Honest notes and known limits
 
 Reality, recorded rather than guessed (Constitution Art. 7):
@@ -173,10 +200,5 @@ Reality, recorded rather than guessed (Constitution Art. 7):
 - **Backcountry `availability` is a status, not a count** — `0` means available
   (like frontcountry). Booking carts differ by family (site vs quota-zone holds);
   all are matched to real captured sessions. See the findings doc.
-
-## What's next
-
-- Cross-assistant preferences and memory.
-- Additional providers (e.g. Alberta Parks) behind the same provider interface.
 
 *No citizen should be excluded from what is already theirs.*

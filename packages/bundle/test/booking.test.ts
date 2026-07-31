@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -36,6 +39,10 @@ const callText = async (c: Client, name: string, args: Record<string, unknown>) 
 };
 
 describe("prepare_booking confirm gate (Constitution Art. 2)", () => {
+  beforeEach(() => {
+    process.env["OPEN_STATE_HOME"] = mkdtempSync(join(tmpdir(), "osc-booking-"));
+  });
+
   it("is registered", async () => {
     const c = await connect();
     expect((await c.listTools()).tools.map((t) => t.name)).toContain("prepare_booking");
@@ -43,15 +50,23 @@ describe("prepare_booking confirm gate (Constitution Art. 2)", () => {
 
   it("without a session, phase 1 asks to connect and touches no network", async () => {
     const c = await connect();
-    // Even with confirm:true, a failed phase-1 prerequisite never executes.
     const out = await callText(c, "prepare_booking", {
       campground_id: "-2147483642",
       site_id: "123",
       start_date: "2099-07-17",
       end_date: "2099-07-19",
-      confirm: true,
     });
     expect(out).toContain("connect_account");
     expect(out).not.toContain("network must not be touched");
+  });
+
+  it("exposes no caller-controlled confirmation field", async () => {
+    const tool = (await (await connect()).listTools()).tools.find(
+      (item) => item.name === "prepare_booking",
+    );
+    const properties = (tool?.inputSchema as { properties?: Record<string, unknown> })
+      .properties;
+    expect(properties).not.toHaveProperty("confirm");
+    expect(properties).not.toHaveProperty("confirmation_token");
   });
 });

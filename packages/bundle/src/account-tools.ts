@@ -8,16 +8,110 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ParksCanadaProvider } from "@open-state/core";
-import { captureSession } from "./session/capture.js";
-import { clearSession, loadSession, saveSession } from "./session/vault.js";
+import {
+  confirmGated,
+  type TwoPhaseOutcome,
+} from "@open-state/kit";
+import {
+  browserProfileExists,
+  captureSession,
+  clearBrowserProfile,
+  isCaptureGenerationCurrent,
+} from "./session/capture.js";
+import {
+  clearSession,
+  confirmationContext,
+  loadSession,
+  saveSession,
+  sessionExclusive,
+} from "./session/vault.js";
+import { citizenApproval } from "./approval.js";
 
 type TextResult = { content: { type: "text"; text: string }[] };
 const text = (s: string): TextResult => ({ content: [{ type: "text", text: s }] });
+
+interface UpdateAccountArgs {
+  first_name?: string;
+  last_name?: string;
+  primary_phone?: string;
+  secondary_phone?: string;
+  street_address?: string;
+  unit?: string;
+  city?: string;
+  region?: string;
+  postal_code?: string;
+  language?: string;
+}
+
+interface PreparedAccountUpdate {
+  changed: string[];
+  before: string;
+  updated: Record<string, any>;
+}
+
+interface DisconnectArgs {}
+
+interface PreparedDisconnect {
+  hadProfile: boolean;
+}
 
 export function registerAccountTools(
   server: McpServer,
   provider: ParksCanadaProvider,
 ): void {
+  const updateAccount = confirmGated<UpdateAccountArgs, PreparedAccountUpdate>(
+    {
+      prepare: (args) => prepareAccountUpdate(args, provider),
+      execute: (_args, outcome) => executeAccountUpdate(outcome, provider),
+    },
+    {
+      context: confirmationContext,
+      approve: citizenApproval(server),
+      exclusive: sessionExclusive,
+    },
+  );
+  const disconnectAccount = confirmGated<DisconnectArgs, PreparedDisconnect>(
+    {
+      async prepare() {
+        if (!loadSession() && !browserProfileExists()) {
+          return { problem: "There is no saved Parks Canada session to remove." };
+        }
+        const hadProfile = browserProfileExists();
+        return {
+          summary:
+            "Here's what I'll disconnect:\n" +
+            "- Remove the encrypted Parks Canada session from this device.\n" +
+            (hadProfile
+              ? "- Close managed checkout windows and remove this app's dedicated Chrome profile."
+              : "- No dedicated Chrome profile is currently present."),
+          onConfirm: "confirm and I'll remove this authentication state from this device",
+          prepared: { hadProfile },
+        };
+      },
+      async execute(_args, outcome) {
+        try {
+          await clearBrowserProfile();
+        } catch (err) {
+          return (
+            "I couldn't remove the dedicated Chrome profile, so I left the encrypted " +
+            `session in place rather than claiming a partial disconnect. ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+        const removed = clearSession();
+        return removed || outcome.prepared?.hadProfile
+          ? "Disconnected. The encrypted session and dedicated Chrome authentication state have been removed from this device."
+          : "There was no saved authentication state to remove.";
+      },
+    },
+    {
+      context: confirmationContext,
+      approve: citizenApproval(server),
+      exclusive: sessionExclusive,
+    },
+  );
+
   server.registerTool(
     "connect_account",
     {
@@ -37,8 +131,15 @@ export function registerAccountTools(
     },
     async () => {
       try {
-        const session = await captureSession();
-        saveSession(session);
+        const captured = await captureSession();
+        await sessionExclusive(async () => {
+          if (!isCaptureGenerationCurrent(captured.generation)) {
+            throw new Error(
+              "That sign-in was canceled by a disconnect, so I did not save its session.",
+            );
+          }
+          saveSession(captured.session);
+        });
         let who = "";
         try {
           const info = await provider.getUserInfo();
@@ -112,19 +213,19 @@ export function registerAccountTools(
     {
       title: "Disconnect your Parks Canada account",
       description:
-        "Removes the saved Parks Canada session from this device. Use this when " +
-        "you're done or on a shared computer.",
-      inputSchema: {},
-      annotations: { readOnlyHint: false, openWorldHint: false, idempotentHint: true },
+        "Previews removal of the encrypted Parks Canada session and this app's " +
+        "dedicated Chrome authentication state, then asks the citizen to approve " +
+        "that exact action through the MCP host.",
+      inputSchema: {
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
     },
-    async () => {
-      const removed = clearSession();
-      return text(
-        removed
-          ? "Disconnected. Your saved Parks Canada session has been removed from this device."
-          : "There was no saved session to remove.",
-      );
-    },
+    async (args) => disconnectAccount(args),
   );
 
   server.registerTool(
@@ -202,51 +303,9 @@ export function registerAccountTools(
         postal_code: z.string().optional(),
         language: z.string().optional(),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     },
-    async (args) => {
-      if (!loadSession()) {
-        return text("You're not connected yet. Run connect_account to sign in first.");
-      }
-      const changed = changedFields(args);
-      if (changed.length === 0) {
-        return text(
-          "Tell me what to change — phone, address, name, or language — and " +
-            "I'll update it once you confirm.",
-        );
-      }
-      let current: Record<string, any> | null;
-      try {
-        current = await provider.getShopper();
-      } catch (err) {
-        return text(err instanceof Error ? err.message : String(err));
-      }
-      if (!current) {
-        return text(
-          "I couldn't read your account — your session may have expired. Run " +
-            "connect_account to sign in again.",
-        );
-      }
-      const before = formatAccount(current);
-      // Mutate the exact record the API returned (changing only what was asked +
-      // completedDate), so every other field keeps the server's own names/values
-      // — reconstructing it was what tripped CanadianFormatMismatch.
-      const dto = buildUpdatedShopper(current, args);
-      try {
-        await provider.updateShopper(dto);
-      } catch (err) {
-        return text(
-          `${err instanceof Error ? err.message : String(err)}\n\n` +
-            "Diagnostic — the profile I tried to send (your personal values " +
-            `masked):\n${maskedJson(dto)}`,
-        );
-      }
-      const after = await provider.getShopper().catch(() => null);
-      return text(
-        `Updated your Parks Canada account (${changed.join(", ")}).\n\n` +
-          `Before:\n${before}\n\nNow:\n${formatAccount(after ?? dto)}`,
-      );
-    },
+    async (args) => updateAccount(args as UpdateAccountArgs),
   );
 
   server.registerTool(
@@ -271,6 +330,65 @@ export function registerAccountTools(
         return text(err instanceof Error ? err.message : String(err));
       }
     },
+  );
+}
+
+async function prepareAccountUpdate(
+  args: UpdateAccountArgs,
+  provider: ParksCanadaProvider,
+): Promise<TwoPhaseOutcome<PreparedAccountUpdate> | { problem: string }> {
+  if (!loadSession()) {
+    return { problem: "You're not connected yet. Run connect_account to sign in first." };
+  }
+  const changed = changedFields(args);
+  if (changed.length === 0) {
+    return {
+      problem:
+        "Tell me what to change — phone, address, name, or language — and " +
+        "I'll prepare a preview for you.",
+    };
+  }
+  let current: Record<string, any> | null;
+  try {
+    current = await provider.getShopper();
+  } catch (err) {
+    return { problem: err instanceof Error ? err.message : String(err) };
+  }
+  if (!current) {
+    return {
+      problem:
+        "I couldn't read your account — your session may have expired. Run " +
+        "connect_account to sign in again.",
+    };
+  }
+  const updated = buildUpdatedShopper(current, args);
+  return {
+    summary:
+      `Here's the Parks Canada profile change I'll make (${changed.join(", ")}).\n\n` +
+      `Before:\n${formatAccount(current)}\n\nAfter:\n${formatAccount(updated)}`,
+    onConfirm: "confirm and I'll update this official account record",
+    prepared: { changed, before: formatAccount(current), updated },
+  };
+}
+
+async function executeAccountUpdate(
+  outcome: TwoPhaseOutcome<PreparedAccountUpdate>,
+  provider: ParksCanadaProvider,
+): Promise<string> {
+  const prepared = outcome.prepared!;
+  try {
+    await provider.updateShopper(prepared.updated);
+  } catch (err) {
+    return (
+      `${err instanceof Error ? err.message : String(err)}\n\n` +
+      "Diagnostic — the profile I tried to send (your personal values masked):\n" +
+      maskedJson(prepared.updated)
+    );
+  }
+  const after = await provider.getShopper().catch(() => null);
+  return (
+    `Updated your Parks Canada account (${prepared.changed.join(", ")}).\n\n` +
+    `Before:\n${prepared.before}\n\nNow:\n${formatAccount(after ?? prepared.updated)}`
   );
 }
 

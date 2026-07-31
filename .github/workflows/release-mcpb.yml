@@ -1,48 +1,126 @@
-name: Release .mcpb
+name: Release public artifacts
+
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "Ref to build/release from"
-        required: true
-        default: "main"
+  push:
+    tags: ["camping-v*"]
+
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: public-release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.ref }}
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Install (frozen lockfile)
+          registry-url: https://registry.npmjs.org
+
+      - name: Install from reviewed lockfile
         run: pnpm install --frozen-lockfile
-      - name: Build workspace + pack .mcpb
+
+      - name: Validate source
         run: |
-          pnpm -r build
+          pnpm typecheck
+          pnpm test
+          pnpm check:pii
+          pnpm build
+
+      - name: Verify protected tag and versions
+        id: version
+        run: |
+          version=$(node -p "require('./packages/bundle/package.json').version")
+          manifest=$(node -p "require('./packages/bundle/manifest.json').version")
+          registry=$(node -p "require('./server.json').version")
+          source=$(sed -n 's/^export const VERSION = \"\\([^\"]*\\)\";/\\1/p' packages/bundle/src/version.ts)
+          tag="${GITHUB_REF#refs/tags/camping-v}"
+          test "$tag" = "$version"
+          test "$manifest" = "$version"
+          test "$registry" = "$version"
+          test "$source" = "$version"
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Stage, audit, and smoke test bundle
+        run: |
+          node packages/bundle/scripts/build-mcpb.mjs
+          pnpm audit:bundle
+          pnpm smoke:bundle
+          pnpm smoke:npm
+          pnpm exec mcpb pack packages/bundle/.mcpb-build packages/bundle/open-state-camping.mcpb
+          node scripts/normalize-mcpb.mjs packages/bundle/open-state-camping.mcpb
+          pnpm audit:mcpb
+          pnpm check:reproducible
+
+      - name: Inspect public npm package
+        run: pnpm exec npm pack ./packages/bundle --dry-run
+
+      - name: Generate checksums
+        run: |
           cd packages/bundle
-          node scripts/build-mcpb.mjs
-          pnpm dlx @anthropic-ai/mcpb pack .mcpb-build open-state-camping.mcpb
-      - name: Read bundle version
-        id: v
-        run: echo "version=$(node -p "require('./packages/bundle/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Create release with the .mcpb asset
+          shasum -a 256 \
+            open-state-camping.mcpb \
+            .mcpb-build/inventory.json \
+            .mcpb-build/sbom.cdx.json > SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            packages/bundle/open-state-camping.mcpb
+            packages/bundle/.mcpb-build/inventory.json
+            packages/bundle/.mcpb-build/sbom.cdx.json
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: packages/bundle/open-state-camping.mcpb
+          sbom-path: packages/bundle/.mcpb-build/sbom.cdx.json
+
+      - name: Publish npm package
+        env:
+          # Only needed to bootstrap the first release. Remove the environment
+          # secret after configuring npm Trusted Publishing for this workflow.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm exec npm publish ./packages/bundle --access public --provenance
+
+      - name: Create immutable release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.v.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          tag="camping-v$VERSION"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" packages/bundle/open-state-camping.mcpb --clobber
-          else
-            gh release create "$tag" packages/bundle/open-state-camping.mcpb \
-              --target "$(git rev-parse HEAD)" \
-              --title "Camping $tag" \
-              --notes "The Open State: Camping — installable .mcpb (v$VERSION). Download and add it in Claude Desktop -> Settings -> Extensions. Independent, not operated by or endorsed by Parks Canada; it never books or pays on its own."
-          fi
+          gh release create "camping-v$VERSION" \
+            packages/bundle/open-state-camping.mcpb \
+            packages/bundle/SHA256SUMS \
+            packages/bundle/.mcpb-build/inventory.json \
+            packages/bundle/.mcpb-build/sbom.cdx.json \
+            --verify-tag \
+            --title "The Open State: Camping v$VERSION" \
+            --generate-notes \
+            --notes "Independent, not operated by or endorsed by Parks Canada. Consequential actions require trusted host confirmation; payment always remains in the citizen's browser."
+
+      - name: Install pinned MCP Registry publisher
+        run: |
+          curl --fail --location --silent --show-error \
+            --output mcp-publisher.tar.gz \
+            https://github.com/modelcontextprotocol/registry/releases/download/v1.8.0/mcp-publisher_linux_amd64.tar.gz
+          echo "1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf  mcp-publisher.tar.gz" | sha256sum --check
+          tar -xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Publish official MCP Registry entry
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
