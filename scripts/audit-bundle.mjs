@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import {
   existsSync,
   lstatSync,
@@ -81,6 +82,7 @@ writeFileSync(join(stage, "inventory.json"), JSON.stringify(inventory, null, 2) 
 const sbom = {
   bomFormat: "CycloneDX",
   specVersion: "1.6",
+  serialNumber: `urn:uuid:${uuidV5(JSON.stringify(inventory))}`,
   version: 1,
   metadata: {
     component: {
@@ -111,4 +113,17 @@ function* walk(dir) {
 
 function purlName(name) {
   return name.startsWith("@") ? `%40${name.slice(1)}` : name;
+}
+
+function uuidV5(name) {
+  const namespace = Buffer.from("6ba7b8119dad11d180b400c04fd430c8", "hex");
+  const bytes = createHash("sha1")
+    .update(namespace)
+    .update(name)
+    .digest()
+    .subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
