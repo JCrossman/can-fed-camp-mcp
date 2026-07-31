@@ -1,6 +1,6 @@
 {
   "name": "can-fed-camp-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "The Open State: Camping — a local MCP for accessible Parks Canada campsite search and booking. Conforms to the Civic Access Protocol.",
   "packageManager": "pnpm@10.34.3",

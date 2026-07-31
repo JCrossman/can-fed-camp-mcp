@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.jcrossman/open-state-camping",
+  "name": "io.github.JCrossman/open-state-camping",
   "title": "Open State: Camping - Parks Canada",
   "description": "Find and prepare Parks Canada reservations while keeping the citizen in control.",
   "websiteUrl": "https://github.com/JCrossman/can-fed-camp-mcp",
@@ -10,13 +10,13 @@
     "id": "1292465385",
     "subfolder": "packages/bundle"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@open-state/camping",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
