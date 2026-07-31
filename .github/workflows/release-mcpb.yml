@@ -45,7 +45,7 @@ jobs:
           version=$(node -p "require('./packages/bundle/package.json').version")
           manifest=$(node -p "require('./packages/bundle/manifest.json').version")
           registry=$(node -p "require('./server.json').version")
-          source=$(sed -n 's/^export const VERSION = \"\\([^\"]*\\)\";/\\1/p' packages/bundle/src/version.ts)
+          source=$(sed -n 's/^export const VERSION = "\([^"]*\)";/\1/p' packages/bundle/src/version.ts)
           tag="${GITHUB_REF#refs/tags/camping-v}"
           test "$tag" = "$version"
           test "$manifest" = "$version"
