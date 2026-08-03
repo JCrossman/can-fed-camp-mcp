@@ -6,7 +6,7 @@ consequential actions require direct approval through the MCP host before the
 server proceeds. Payment is always completed by the citizen in their browser.
 
 ```bash
-npx --yes @open-state/camping@1.0.3
+npx --yes @open-state/camping@1.0.4
 ```
 
 Requires Node.js 20 or newer, Google Chrome for account and booking flows, and an
