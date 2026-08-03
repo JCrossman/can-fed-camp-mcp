@@ -44,10 +44,9 @@ approval. Its workflow:
 - creates the immutable GitHub release; and
 - publishes `server.json` to the official MCP Registry using GitHub OIDC.
 
-The first npm publication needs a short-lived granular `NPM_TOKEN` stored only
-in the protected environment. Afterwards, configure npm Trusted Publishing for
-repository `JCrossman/can-fed-camp-mcp`, workflow `release-mcpb.yml`, environment
-`public-release`, remove the token, and disallow token-based publishing.
+npm publication uses Trusted Publishing for repository
+`JCrossman/can-fed-camp-mcp`, workflow `release-mcpb.yml`, and environment
+`public-release`. Traditional token-based publishing is disabled.
 
 Never publish from an unreviewed branch, a local dirty tree, or a mutable
 dependency install. If any publish step fails, do not move or recreate the tag;

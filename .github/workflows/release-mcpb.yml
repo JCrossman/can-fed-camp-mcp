@@ -93,10 +93,6 @@ jobs:
           sbom-path: packages/bundle/.mcpb-build/sbom.cdx.json
 
       - name: Publish npm package
-        env:
-          # Only needed to bootstrap the first release. Remove the environment
-          # secret after configuring npm Trusted Publishing for this workflow.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm exec npm publish ./packages/bundle --access public --provenance
 
       - name: Create immutable release
