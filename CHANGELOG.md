@@ -5,6 +5,13 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-08-03
+
+### Security
+
+- Updated `fast-uri` to `3.1.5`, closing its backslash authority host-confusion
+  vulnerability.
+
 ## [1.0.3] - 2026-07-31
 
 ### Security
@@ -47,7 +54,8 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.3...HEAD
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.4...HEAD
+[1.0.4]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.4
 [1.0.3]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.3
 [1.0.2]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.2
 [1.0.1]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.1
