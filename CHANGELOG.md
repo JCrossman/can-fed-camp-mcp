@@ -11,6 +11,8 @@ Versioning and keeps an explicit human-readable release history.
 
 - Updated `fast-uri` to `3.1.5`, closing its backslash authority host-confusion
   vulnerability.
+- Updated Hono to `4.12.34`, closing a CORS middleware denial-of-service
+  vulnerability.
 
 ## [1.0.3] - 2026-07-31
 
