@@ -67,15 +67,17 @@ export async function verifyPersistentToolSession(client, expected, options = {}
         },
       ];
   if (options.photos && !options.live) {
-    sequence.push({
-      name: "get_site_details",
-      arguments: {
-        campground_id: "-2147483644",
-        campsite_id: "-2147475789",
-      },
-      expect: /Site 104/i,
-      validate: validateNativeImages,
-    });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      sequence.push({
+        name: "get_site_details",
+        arguments: {
+          campground_id: "-2147483644",
+          campsite_id: "-2147475789",
+        },
+        expect: /Site 104/i,
+        validate: validateNativeImages,
+      });
+    }
   }
 
   await assertToolSet(client, expected, "initial discovery");

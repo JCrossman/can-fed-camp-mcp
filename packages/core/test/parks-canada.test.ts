@@ -150,6 +150,28 @@ describe("GoingToCampClient — images", () => {
   });
 });
 
+describe("GoingToCampClient — WAF cooldown", () => {
+  it("does not retry during a five-minute Azure WAF cooldown", async () => {
+    let requests = 0;
+    const client = new GoingToCampClient({
+      hostname: "reservation.pc.gc.ca",
+      userAgent: "test",
+      fetchFn: (async () => {
+        requests += 1;
+        return new Response(
+          '<html><meta name="description" content="Azure WAF"></html>',
+          { status: 403, headers: { "content-type": "text/html" } },
+        );
+      }) as FetchLike,
+    });
+
+    const call = () => client.getResources("-2147483596");
+    await expect(call()).rejects.toThrow(/five-minute cooldown/i);
+    await expect(call()).rejects.toThrow(/five-minute cooldown/i);
+    expect(requests).toBe(1);
+  });
+});
+
 describe("ParksCanadaProvider — search", () => {
   it("resolves campgrounds for a park name", async () => {
     const areas = await makeProvider().searchParks("Banff");
