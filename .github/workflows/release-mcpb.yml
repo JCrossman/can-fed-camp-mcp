@@ -21,7 +21,7 @@ jobs:
 
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -92,7 +92,7 @@ jobs:
             packages/bundle/.mcpb-build/sbom.cdx.json
 
       - name: Attest SBOM
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.0.0
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.0.0
         with:
           subject-path: packages/bundle/open-state-camping.mcpb
           sbom-path: packages/bundle/.mcpb-build/sbom.cdx.json
