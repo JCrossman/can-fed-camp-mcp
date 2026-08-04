@@ -5,6 +5,15 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-08-04
+
+### Fixed
+
+- Cache bounded campground metadata and photo responses so repeated campsite
+  detail requests do not repeatedly hit Parks Canada's public API.
+- Stop upstream traffic for five minutes after an Azure WAF block and return
+  concise recovery guidance instead of retrying or exposing the WAF HTML page.
+
 ## [1.0.6] - 2026-08-03
 
 ### Fixed
@@ -67,7 +76,8 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.6...HEAD
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.7...HEAD
+[1.0.7]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.7
 [1.0.6]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.6
 [1.0.4]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.4
 [1.0.3]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.3

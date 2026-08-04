@@ -77,12 +77,12 @@ function fixtureFetch(): FetchLike {
   }) as FetchLike;
 }
 
-async function connectClient(): Promise<Client> {
+async function connectClient(fetchFn: FetchLike = fixtureFetch()): Promise<Client> {
   const provider = new ParksCanadaProvider({
     client: new GoingToCampClient({
       hostname: "reservation.pc.gc.ca",
       userAgent: "test",
-      fetchFn: fixtureFetch(),
+      fetchFn,
     }),
   });
   const server = createServerForProvider(provider, {
@@ -222,6 +222,47 @@ describe("bundle MCP server", () => {
     });
     expect(result.content.some((item) => item.type === "resource")).toBe(false);
     expect(JSON.stringify(result).length).toBeLessThan(150_000);
+  });
+
+  it("reuses campground metadata and photos across repeated detail calls", async () => {
+    const counts = new Map<string, number>();
+    const fixtures = fixtureFetch();
+    const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
+      const path = new URL(
+        typeof input === "string" || input instanceof URL ? input : input.url,
+      ).pathname;
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+      if (
+        counts.get(path)! > 1 &&
+        (path === "/api/resourcelocation/resources" || path.startsWith("/images/"))
+      ) {
+        return new Response(
+          '<html><meta name="description" content="Azure WAF"></html>',
+          { status: 403 },
+        );
+      }
+      return fixtures(input, init);
+    }) as FetchLike;
+    const client = await connectClient(fetchFn);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await client.callTool({
+        name: "get_site_details",
+        arguments: {
+          campground_id: CAMPGROUND_ID,
+          campsite_id: "-2147475789",
+        },
+      });
+      expect(result.content.filter((item) => item.type === "image")).toHaveLength(1);
+    }
+
+    expect(counts.get("/api/resourcelocation/resources")).toBe(1);
+    expect(counts.get("/api/attribute/filterable")).toBe(1);
+    expect(
+      [...counts.entries()]
+        .filter(([path]) => path.startsWith("/images/"))
+        .reduce((total, [, count]) => total + count, 0),
+    ).toBe(1);
   });
 
   it("search_park_availability consolidates and coerces ISO dates", async () => {

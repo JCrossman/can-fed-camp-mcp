@@ -47,6 +47,15 @@ import type {
 } from "./types.js";
 
 const PROVIDER_NAME = "parks_canada";
+const RESOURCE_CACHE_TTL_MS = 5 * 60_000;
+const RESOURCE_CACHE_MAX_ENTRIES = 8;
+const PHOTO_CACHE_TTL_MS = 15 * 60_000;
+const PHOTO_CACHE_MAX_ENTRIES = 24;
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: Promise<T>;
+};
 
 export interface SearchSitesOptions {
   recreationAreaId?: string;
@@ -85,6 +94,14 @@ export class ParksCanadaProvider {
   private resourceCategoriesCache?: Map<number, ResourceCategoryInfo>;
   private bookingCategoriesCache?: BookingCategoryRecord[];
   private facilitiesCache?: CampgroundRecord[];
+  private readonly resourcesCache = new Map<
+    string,
+    CacheEntry<Record<string, Record<string, any>>>
+  >();
+  private readonly photoCache = new Map<
+    string,
+    CacheEntry<{ bytes: Uint8Array; contentType: string } | null>
+  >();
 
   constructor(
     opts: {
@@ -161,7 +178,7 @@ export class ParksCanadaProvider {
     for (const { product, facility } of pairs) {
       const rlid = String(facility.resourceLocationId);
       const cats = new Set(product.allowedResourceCategoryIds);
-      const resources = await this.client.getResources(rlid);
+      const resources = await this.resources(rlid);
       // This product's slots only (a facility may host several products), and no
       // staff/media "(Park Use)" internal holds.
       const entries = Object.values(resources).filter((r: any) => {
@@ -314,7 +331,7 @@ export class ParksCanadaProvider {
           ? [facility.rootMapId]
           : await this.client.listFacilityRootMaps(rlid);
       if (rootMaps.length === 0) continue;
-      const resources = await this.client.getResources(rlid);
+      const resources = await this.resources(rlid);
       const daily: Record<string, (number | null)[]> = {};
       for (const rootMapId of rootMaps) {
         const part = await this.client.dailyAvailability({
@@ -366,7 +383,7 @@ export class ParksCanadaProvider {
   /** A facility's resources → `resourceModel` (0 Site, 2 Zone, …). Lets the booking
    *  choose the right hold (a quota Zone needs a zone blocker, not a site blocker). */
   async resourceModels(campgroundId: string): Promise<Map<string, number>> {
-    const resources = await this.client.getResources(campgroundId);
+    const resources = await this.resources(campgroundId);
     const out = new Map<string, number>();
     for (const r of Object.values(resources)) {
       const id = (r as any)["resourceId"];
@@ -380,7 +397,7 @@ export class ParksCanadaProvider {
   async backcountryEntryPoints(
     campgroundId: string,
   ): Promise<Array<{ id: string; name: string }>> {
-    const resources = await this.client.getResources(campgroundId);
+    const resources = await this.resources(campgroundId);
     return Object.values(resources)
       .filter((r: any) => r["resourceModel"] === 3)
       .map((r: any) => ({ id: String(r["resourceId"]), name: resourceName(r) ?? String(r["resourceId"]) }));
@@ -401,7 +418,7 @@ export class ParksCanadaProvider {
     campgroundId: string,
     zoneId: string,
   ): Promise<{ equipmentCategoryId: number; subEquipmentCategoryId: number } | null> {
-    const resources = await this.client.getResources(campgroundId);
+    const resources = await this.resources(campgroundId);
     const zone = resources[String(zoneId)];
     const allowed = (zone?.["allowedEquipment"] ?? []) as Array<Record<string, number>>;
     const first = allowed[0];
@@ -421,7 +438,7 @@ export class ParksCanadaProvider {
     }
     const group = opts.category ?? "campsite";
     const equipmentId = await this.resolveEquipmentId(opts.equipmentType);
-    const resources = await this.client.getResources(opts.campgroundId);
+    const resources = await this.resources(opts.campgroundId);
     const daily = await this.client.dailyAvailability({
       rootMapId,
       resourceLocationId: opts.campgroundId,
@@ -545,7 +562,7 @@ export class ParksCanadaProvider {
     campgroundId: string;
     campsiteId: string;
   }): Promise<SiteDetails> {
-    const resources = await this.client.getResources(opts.campgroundId);
+    const resources = await this.resources(opts.campgroundId);
     const resource = resources[String(opts.campsiteId)];
     if (!resource) {
       throw new UpstreamError(
@@ -573,7 +590,14 @@ export class ParksCanadaProvider {
   }
 
   fetchPhoto(url: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-    return this.client.fetchImage(url);
+    return this.cached(
+      this.photoCache,
+      url,
+      PHOTO_CACHE_TTL_MS,
+      PHOTO_CACHE_MAX_ENTRIES,
+      () => this.client.fetchImage(url),
+      false,
+    );
   }
 
   /** The signed-in citizen's account info, to verify a captured session. */
@@ -713,6 +737,56 @@ export class ParksCanadaProvider {
       this.attrDefsCache = await this.client.attributeDefinitions();
     }
     return this.attrDefsCache;
+  }
+
+  private resources(
+    campgroundId: string,
+  ): Promise<Record<string, Record<string, any>>> {
+    return this.cached(
+      this.resourcesCache,
+      String(campgroundId),
+      RESOURCE_CACHE_TTL_MS,
+      RESOURCE_CACHE_MAX_ENTRIES,
+      () => this.client.getResources(campgroundId),
+    );
+  }
+
+  private async cached<K, V>(
+    cache: Map<K, CacheEntry<V>>,
+    key: K,
+    ttlMs: number,
+    maxEntries: number,
+    load: () => Promise<V>,
+    cacheNull = true,
+  ): Promise<V> {
+    const now = Date.now();
+    const existing = cache.get(key);
+    if (existing && existing.expiresAt > now) {
+      cache.delete(key);
+      cache.set(key, existing);
+      return existing.value;
+    }
+    if (existing) cache.delete(key);
+
+    const value = load();
+    const entry = { expiresAt: now + ttlMs, value };
+    cache.set(key, entry);
+    while (cache.size > maxEntries) {
+      const oldest = cache.keys().next().value as K | undefined;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+
+    try {
+      const resolved = await value;
+      if (!cacheNull && resolved == null && cache.get(key) === entry) {
+        cache.delete(key);
+      }
+      return resolved;
+    } catch (error) {
+      if (cache.get(key) === entry) cache.delete(key);
+      throw error;
+    }
   }
 
   private async findCampground(

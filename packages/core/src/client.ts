@@ -17,6 +17,11 @@ import {
 import { QueueItError, UpstreamError } from "./errors.js";
 import { localized } from "./util.js";
 
+const WAF_COOLDOWN_MS = 5 * 60_000;
+const WAF_BLOCK_MESSAGE =
+  "Parks Canada temporarily blocked automated requests. The connector will not " +
+  "retry during a five-minute cooldown; please wait five minutes before trying again.";
+
 /**
  * True if a response URL is a Queue-it virtual waiting room. Checks the parsed
  * hostname (queue-it.net or a subdomain of it) rather than a substring, so a
@@ -83,6 +88,7 @@ export class GoingToCampClient {
   private readonly headers: Record<string, string>;
   private readonly timeoutMs: number;
   private readonly fetchFn: FetchLike;
+  private wafBlockedUntil = 0;
   /**
    * Returns the citizen's auth headers (e.g. `Cookie` and the Angular
    * `X-XSRF-TOKEN` echo) for the current session, or undefined when not
@@ -127,6 +133,7 @@ export class GoingToCampClient {
     path: string,
     params?: Record<string, unknown>,
   ): Promise<unknown> {
+    this.assertNotWafBlocked();
     const url = new URL(this.base + path);
     if (params) {
       for (const [k, v] of Object.entries(params)) {
@@ -153,7 +160,9 @@ export class GoingToCampClient {
       );
     }
     if (resp.status >= 400) {
-      throw new UpstreamError(await describeError(resp, path));
+      const error = await describeError(resp, path);
+      if (error.wafBlocked) this.noteWafBlock();
+      throw new UpstreamError(error.message);
     }
     try {
       return await resp.json();
@@ -172,6 +181,7 @@ export class GoingToCampClient {
    * at the tool layer (Constitution Art. 2).
    */
   private async post(path: string, body: unknown): Promise<unknown> {
+    this.assertNotWafBlocked();
     let resp: Response;
     try {
       resp = await this.fetchFn(this.base + path, {
@@ -193,7 +203,9 @@ export class GoingToCampClient {
       );
     }
     if (resp.status >= 400) {
-      throw new UpstreamError(await describeError(resp, path));
+      const error = await describeError(resp, path);
+      if (error.wafBlocked) this.noteWafBlock();
+      throw new UpstreamError(error.message);
     }
     // A successful write may return JSON, or an empty body — both are fine.
     try {
@@ -552,6 +564,7 @@ export class GoingToCampClient {
 
   /** Best-effort image fetch, restricted to this platform's own host (SSRF guard). */
   async fetchImage(url: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+    this.assertNotWafBlocked();
     if (!url.startsWith("https://")) return null;
     if (!url.startsWith(this.base + "/")) return null;
     let resp: Response;
@@ -563,6 +576,10 @@ export class GoingToCampClient {
       });
     } catch {
       return null;
+    }
+    if (resp.status === 403) {
+      this.noteWafBlock();
+      throw new UpstreamError(WAF_BLOCK_MESSAGE);
     }
     if (!resp.ok) return null;
     const contentType = (resp.headers.get("content-type") ?? "")
@@ -577,6 +594,16 @@ export class GoingToCampClient {
     const bytes = new Uint8Array(await resp.arrayBuffer());
     if (bytes.byteLength > 5_000_000) return null;
     return { bytes, contentType };
+  }
+
+  private assertNotWafBlocked(): void {
+    if (Date.now() < this.wafBlockedUntil) {
+      throw new UpstreamError(WAF_BLOCK_MESSAGE);
+    }
+  }
+
+  private noteWafBlock(): void {
+    this.wafBlockedUntil = Date.now() + WAF_COOLDOWN_MS;
   }
 }
 
@@ -608,18 +635,26 @@ function availabilityParams(
 /** Build an UpstreamError that includes the platform's response body (e.g. the
  *  ASP.NET validation message naming the bad field), which is essential for
  *  diagnosing 400s. The body holds no secrets — just the error detail. */
-async function describeError(resp: Response, path: string): Promise<string> {
+async function describeError(
+  resp: Response,
+  path: string,
+): Promise<{ message: string; wafBlocked: boolean }> {
   let detail = "";
   try {
     detail = (await resp.text()).trim().slice(0, 500);
   } catch {
     /* body unreadable */
   }
-  return (
-    `The Parks Canada booking system returned an error (HTTP ${resp.status}) ` +
-    `for ${path}.` +
-    (detail ? ` Details: ${detail}` : "")
-  );
+  const wafBlocked =
+    resp.status === 403 && /Azure WAF|Web Application Firewall/i.test(detail);
+  return {
+    message: wafBlocked
+      ? WAF_BLOCK_MESSAGE
+      : `The Parks Canada booking system returned an error (HTTP ${resp.status}) ` +
+        `for ${path}.` +
+        (detail ? ` Details: ${detail}` : ""),
+    wafBlocked,
+  };
 }
 
 /** Return true if a resource record is marked accessible (attribute -32756 = 0). */
