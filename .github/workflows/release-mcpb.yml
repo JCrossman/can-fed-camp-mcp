@@ -66,9 +66,9 @@ jobs:
           pnpm audit:mcpb
           pnpm check:reproducible
 
-      - name: Exercise live multi-tool session
+      - name: Exercise packaged photo session
         env:
-          OPEN_STATE_LIVE_SMOKE: "1"
+          OPEN_STATE_FIXTURE_SMOKE: "1"
         run: pnpm smoke:bundle
 
       - name: Inspect public npm package

@@ -5,7 +5,7 @@ Versioning and keeps an explicit human-readable release history.
 
 ## [Unreleased]
 
-## [1.0.5] - 2026-08-03
+## [1.0.6] - 2026-08-03
 
 ### Fixed
 
@@ -13,6 +13,8 @@ Versioning and keeps an explicit human-readable release history.
   inline instead of silently dropping embedded resources.
 - Thumbnail photos so a three-image site-detail response remains below Claude
   Desktop's tool-result size limit.
+- Use deterministic recorded responses for the packaged release smoke because
+  Parks Canada's WAF blocks GitHub-hosted runner IPs.
 
 ## [1.0.4] - 2026-08-03
 
@@ -65,8 +67,8 @@ Versioning and keeps an explicit human-readable release history.
 - Removed model-controlled confirmation booleans and tokens.
 - Consequential tools now fail closed on hosts without form elicitation.
 
-[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.5...HEAD
-[1.0.5]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.5
+[Unreleased]: https://github.com/JCrossman/can-fed-camp-mcp/compare/camping-v1.0.6...HEAD
+[1.0.6]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.6
 [1.0.4]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.4
 [1.0.3]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.3
 [1.0.2]: https://github.com/JCrossman/can-fed-camp-mcp/releases/tag/camping-v1.0.2
