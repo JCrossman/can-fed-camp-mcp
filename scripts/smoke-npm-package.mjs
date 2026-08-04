@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { verifyPersistentToolSession } from "./smoke-session.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const work = mkdtempSync(join(tmpdir(), "open-state-npm-smoke-"));
@@ -56,15 +57,19 @@ try {
     stderr: "pipe",
   });
   const client = new Client({ name: "npm-smoke", version: "1.0.0" });
+  let stderr = "";
+  transport.stderr?.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
   try {
     await client.connect(transport);
-    const actual = (await client.listTools()).tools.map((tool) => tool.name).sort();
     const expected = manifest.tools.map((tool) => tool.name).sort();
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error("The installed npm package exposed an unexpected tool set.");
-    }
+    await verifyPersistentToolSession(client, expected);
   } finally {
     await client.close().catch(() => {});
+  }
+  if (stderr.trim()) {
+    throw new Error(`Installed npm server wrote to stderr:\n${stderr}`);
   }
 
   execFileSync(
@@ -85,7 +90,9 @@ try {
   if (existsSync(join(install, `node_modules/${pkg.name}`))) {
     throw new Error("npm uninstall left the package installed.");
   }
-  console.log("npm package smoke test clean: pack, install, stdio, and uninstall passed.");
+  console.log(
+    "npm package smoke test clean: pack, install, persistent multi-tool stdio, and uninstall passed.",
+  );
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

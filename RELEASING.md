@@ -38,6 +38,8 @@ version above. The protected `public-release` environment requires maintainer
 approval. Its workflow:
 
 - rebuilds and tests from the frozen lockfile;
+- exercises multiple sibling tools sequentially in one packaged stdio session,
+  including a live Parks Canada request before publication;
 - creates a byte-reproducible `.mcpb`, inventory, CycloneDX SBOM, checksums, and
   GitHub build/SBOM attestations;
 - publishes `@open-state/camping` to npm with provenance;

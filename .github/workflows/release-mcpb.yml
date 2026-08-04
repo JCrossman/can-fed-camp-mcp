@@ -66,6 +66,11 @@ jobs:
           pnpm audit:mcpb
           pnpm check:reproducible
 
+      - name: Exercise live multi-tool session
+        env:
+          OPEN_STATE_LIVE_SMOKE: "1"
+        run: pnpm smoke:bundle
+
       - name: Inspect public npm package
         run: pnpm exec npm pack ./packages/bundle --dry-run
 

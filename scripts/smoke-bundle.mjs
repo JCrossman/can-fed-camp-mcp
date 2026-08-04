@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { verifyPersistentToolSession } from "./smoke-session.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const stage = join(root, "packages/bundle/.mcpb-build");
@@ -19,18 +20,24 @@ const transport = new StdioClientTransport({
   stderr: "pipe",
 });
 const client = new Client({ name: "bundle-smoke", version: "1.0.0" });
+let stderr = "";
+transport.stderr?.on("data", (chunk) => {
+  stderr += chunk.toString();
+});
 
 try {
   await client.connect(transport);
-  const actual = (await client.listTools()).tools.map((tool) => tool.name).sort();
   const expected = manifest.tools.map((tool) => tool.name).sort();
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(
-      `Tool mismatch.\nExpected: ${expected.join(", ")}\nActual: ${actual.join(", ")}`,
-    );
-  }
-  console.log(`Bundle smoke test clean: stdio started and listed ${actual.length} tools.`);
+  await verifyPersistentToolSession(client, expected, {
+    live: process.env["OPEN_STATE_LIVE_SMOKE"] === "1",
+  });
 } finally {
   await client.close().catch(() => {});
   rmSync(home, { recursive: true, force: true });
 }
+if (stderr.trim()) {
+  throw new Error(`Packaged server wrote to stderr:\n${stderr}`);
+}
+console.log(
+  `Bundle smoke test clean: ${manifest.tools.length} tools persisted across sequential calls.`,
+);

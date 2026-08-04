@@ -143,6 +143,43 @@ describe("bundle MCP server", () => {
     expect(out).toContain("not operated by or endorsed by Parks Canada");
   });
 
+  it("keeps sibling tools registered across sequential calls in one session", async () => {
+    const client = await connectClient();
+    const expected = (await client.listTools()).tools.map((tool) => tool.name).sort();
+    const calls: Array<[string, Record<string, unknown>]> = [
+      ["search_parks", { query: "Banff" }],
+      [
+        "search_park_availability",
+        {
+          query: "Banff",
+          start_date: START,
+          end_date: END,
+          party_size: 1,
+          equipment_type: "-32768",
+          category: "campsite",
+        },
+      ],
+      [
+        "search_sites",
+        {
+          campground_id: CAMPGROUND_ID,
+          start_date: START,
+          end_date: END,
+          party_size: 1,
+          equipment_type: "-32768",
+        },
+      ],
+    ];
+
+    for (const [name, args] of calls) {
+      const output = await callText(client, name, args);
+      expect(output.length).toBeGreaterThan(0);
+      expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual(
+        expected,
+      );
+    }
+  });
+
   it("search_sites surfaces accessibility and stays prepare-only", async () => {
     const out = await callText(await connectClient(), "search_sites", {
       campground_id: CAMPGROUND_ID,
