@@ -12,10 +12,13 @@ const stage = join(root, "packages/bundle/.mcpb-build");
 const entry = join(stage, "server/standalone/server.js");
 const manifest = JSON.parse(readFileSync(join(stage, "manifest.json"), "utf8"));
 const home = mkdtempSync(join(tmpdir(), "open-state-bundle-smoke-"));
+const fixtureSmoke = process.env["OPEN_STATE_FIXTURE_SMOKE"] === "1";
 
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: [entry],
+  args: fixtureSmoke
+    ? ["--import", join(root, "scripts/fixture-fetch-hook.mjs"), entry]
+    : [entry],
   env: { ...process.env, OPEN_STATE_HOME: home },
   stderr: "pipe",
 });
@@ -30,6 +33,7 @@ try {
   const expected = manifest.tools.map((tool) => tool.name).sort();
   await verifyPersistentToolSession(client, expected, {
     live: process.env["OPEN_STATE_LIVE_SMOKE"] === "1",
+    photos: fixtureSmoke,
   });
 } finally {
   await client.close().catch(() => {});
