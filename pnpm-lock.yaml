@@ -45,6 +45,9 @@ importers:
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
+      jpeg-js:
+        specifier: 0.4.4
+        version: 0.4.4
       puppeteer-core:
         specifier: 25.3.0
         version: 25.3.0
@@ -962,6 +965,9 @@ packages:
 
   jose@6.2.5:
     resolution: {integrity: sha512-2E5L2yRp03FnwreJLJX8/r7mHiZICCf8kG7fAsTWkSQTDAcc46NIZoQLKy+EJ8sPoJlxyS4OQR5H70LjIZZlIQ==}
+
+  jpeg-js@0.4.4:
+    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
@@ -2328,6 +2334,8 @@ snapshots:
   isexe@2.0.0: {}
 
   jose@6.2.5: {}
+
+  jpeg-js@0.4.4: {}
 
   json-schema-traverse@1.0.0: {}
 

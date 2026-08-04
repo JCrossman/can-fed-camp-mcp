@@ -98,6 +98,58 @@ function search(overrides: Partial<Parameters<ParksCanadaProvider["searchSites"]
   });
 }
 
+describe("GoingToCampClient — images", () => {
+  it("accepts bounded platform images without following redirects", async () => {
+    let requestInit: RequestInit | undefined;
+    const client = new GoingToCampClient({
+      hostname: "reservation.pc.gc.ca",
+      userAgent: "test",
+      fetchFn: (async (_input: string | URL | Request, init?: RequestInit) => {
+        requestInit = init;
+        return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+          headers: { "content-type": "image/jpeg; charset=binary" },
+        });
+      }) as FetchLike,
+    });
+
+    await expect(
+      client.fetchImage("https://reservation.pc.gc.ca/images/site.jpg"),
+    ).resolves.toMatchObject({
+      contentType: "image/jpeg",
+      bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
+    });
+    expect(requestInit?.redirect).toBe("error");
+  });
+
+  it("rejects non-images and oversized responses", async () => {
+    const client = new GoingToCampClient({
+      hostname: "reservation.pc.gc.ca",
+      userAgent: "test",
+      fetchFn: (async (input: string | URL | Request) => {
+        const url = String(input);
+        return url.includes("oversized")
+          ? new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+              headers: {
+                "content-type": "image/jpeg",
+                "content-length": "5000001",
+              },
+            })
+          : new Response("<html>not an image</html>", {
+              headers: { "content-type": "text/html" },
+            });
+      }) as FetchLike,
+    });
+
+    await expect(
+      client.fetchImage("https://reservation.pc.gc.ca/images/site.jpg"),
+    ).resolves.toBeNull();
+    await expect(
+      client.fetchImage("https://reservation.pc.gc.ca/images/oversized.jpg"),
+    ).resolves.toBeNull();
+    await expect(client.fetchImage("https://example.com/site.jpg")).resolves.toBeNull();
+  });
+});
+
 describe("ParksCanadaProvider — search", () => {
   it("resolves campgrounds for a park name", async () => {
     const areas = await makeProvider().searchParks("Banff");

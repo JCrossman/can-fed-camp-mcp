@@ -25,6 +25,12 @@ function fixture(name: string): unknown {
 function fixtureFetch(): FetchLike {
   return (async (input: string | URL | Request) => {
     const u = new URL(typeof input === "string" ? input : input.toString());
+    if (u.pathname.startsWith("/images/")) {
+      return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    }
     let data: unknown;
     switch (u.pathname) {
       case "/api/resourceLocation":
@@ -113,9 +119,9 @@ describe("bundle MCP server", () => {
     expect(instr).toContain(today);
     expect(instr).toMatch(/resolve_dates/);
     expect(instr).toMatch(/day of the week/i);
-    // Don't surface internal ids / tables; embed photos as markdown; use prepare_booking.
+    // Don't surface internal ids / tables; return native photos; use prepare_booking.
     expect(instr).toMatch(/id numbers|internal/i);
-    expect(instr).toMatch(/markdown image/i);
+    expect(instr).toMatch(/native image content/i);
     expect(instr).toMatch(/prepare_booking/);
   });
 
@@ -187,6 +193,7 @@ describe("bundle MCP server", () => {
       end_date: END,
       party_size: 2,
     });
+
     expect(out).toContain("marked accessible");
     // Steers to prepare_booking (not a deep link) and keeps internal ids hidden.
     expect(out).toMatch(/prepare the booking/i);
@@ -194,6 +201,27 @@ describe("bundle MCP server", () => {
     expect(out).toMatch(/internal id/i);
     // The stay carries a computed weekday, to ground the assistant's date sense.
     expect(out).toMatch(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat), 2099-07-17/);
+  });
+
+  it("returns campsite photos as bounded native image content", async () => {
+    const client = await connectClient();
+    const result = await client.callTool({
+      name: "get_site_details",
+      arguments: {
+        campground_id: CAMPGROUND_ID,
+        campsite_id: "-2147475789",
+      },
+    });
+    const images = result.content.filter((item) => item.type === "image");
+
+    expect(images).toHaveLength(1);
+    expect(images[0]).toMatchObject({
+      type: "image",
+      mimeType: "image/jpeg",
+      data: "/9j/2Q==",
+    });
+    expect(result.content.some((item) => item.type === "resource")).toBe(false);
+    expect(JSON.stringify(result).length).toBeLessThan(150_000);
   });
 
   it("search_park_availability consolidates and coerces ISO dates", async () => {

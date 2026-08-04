@@ -9,6 +9,7 @@ import { z } from "zod";
 import { addDays, ParksCanadaProvider, windowNights } from "@open-state/core";
 import type { BundleConfig } from "./config.js";
 import * as fmt from "./format.js";
+import { prepareDisplayImage, type DisplayImage } from "./photos.js";
 
 const isoDate = z
   .string()
@@ -398,17 +399,10 @@ export function registerTools(
           campsiteId: args.campsite_id,
         });
         const siteLabel = details.siteName ? `Site ${details.siteName}` : "This site";
-        const siteSlug = (details.siteName || "site").replace(/[^A-Za-z0-9]+/g, "-");
-        const content: Array<
-          | { type: "text"; text: string }
-          | { type: "image"; data: string; mimeType: string }
-          | { type: "resource"; resource: { uri: string; mimeType: string; blob: string } }
-        > = [{ type: "text", text: fmt.formatSiteDetails(details) }];
+        const content: Array<{ type: "text"; text: string } | DisplayImage> = [
+          { type: "text", text: fmt.formatSiteDetails(details) },
+        ];
 
-        // Photos: return the image blocks (so the assistant can see/describe them,
-        // and they'll render inline once claude.ai supports it), AND a clickable
-        // link per photo in the text — because claude.ai does not yet render tool
-        // image blocks inline, the link is the citizen's in-flow way to open one.
         if (args.include_photos === false) {
           /* photos suppressed by request */
         } else if (details.photos.length === 0) {
@@ -423,28 +417,15 @@ export function registerTools(
         } else {
           const photos = await fetchPhotos(provider, details.photos, 3);
           if (photos.length > 0) {
-            // Return each photo as a NAMED resource (not a bare image block), so
-            // claude.ai shows a meaningful caption ("Site-816-photo-1.jpg") in the
-            // Content panel instead of a random GUID. The blob is inline data, so
-            // there's no remote fetch / browser-opening tile.
-            photos.forEach(({ image }, i) => {
-              content.push({
-                type: "resource",
-                resource: {
-                  uri: `openstate://photos/Site-${siteSlug}-photo-${i + 1}.jpg`,
-                  mimeType: image.mimeType,
-                  blob: image.data,
-                },
-              });
-            });
+            photos.forEach(({ image }) => content.push(image));
             content.push({
               type: "text",
               text:
                 `${photos.length} photo(s) of ${siteLabel.toLowerCase()} are attached ` +
-                "(they appear in the citizen's Content panel). Describe what they " +
+                "as native images in this tool result. Describe what they " +
                 "show — how exposed, treed, level, or private the site looks — so the " +
-                "citizen gets the picture without opening anything. Do NOT paste the " +
-                "image links or markdown into your reply.",
+                "citizen gets the picture without opening anything. Say the images " +
+                "were returned; do not claim they are already visible in the UI.",
             });
           } else {
             // Photos exist but couldn't be fetched — note it; don't push raw links.
@@ -539,26 +520,16 @@ async function equipmentPrompt(
   return lines.join("\n");
 }
 
-type ImageBlock = { type: "image"; data: string; mimeType: string };
-
 async function fetchPhotos(
   provider: ParksCanadaProvider,
   photos: string[],
   cap: number,
-): Promise<{ url: string; image: ImageBlock }[]> {
-  const out: { url: string; image: ImageBlock }[] = [];
+): Promise<{ url: string; image: DisplayImage }[]> {
+  const out: { url: string; image: DisplayImage }[] = [];
   for (const url of photos.slice(0, cap)) {
     const img = await provider.fetchPhoto(url);
-    if (img) {
-      out.push({
-        url,
-        image: {
-          type: "image",
-          data: Buffer.from(img.bytes).toString("base64"),
-          mimeType: img.contentType || "image/jpeg",
-        },
-      });
-    }
+    const image = img ? prepareDisplayImage(img.bytes, img.contentType) : null;
+    if (image) out.push({ url, image });
   }
   return out;
 }

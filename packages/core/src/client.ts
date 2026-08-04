@@ -558,14 +558,24 @@ export class GoingToCampClient {
     try {
       resp = await this.fetchFn(url, {
         headers: this.requestHeaders(),
+        redirect: "error",
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch {
       return null;
     }
     if (!resp.ok) return null;
-    const contentType = resp.headers.get("content-type") ?? "";
+    const contentType = (resp.headers.get("content-type") ?? "")
+      .split(";", 1)[0]!
+      .trim()
+      .toLowerCase();
+    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(contentType)) {
+      return null;
+    }
+    const declaredLength = Number(resp.headers.get("content-length") ?? "0");
+    if (declaredLength > 5_000_000) return null;
     const bytes = new Uint8Array(await resp.arrayBuffer());
+    if (bytes.byteLength > 5_000_000) return null;
     return { bytes, contentType };
   }
 }
