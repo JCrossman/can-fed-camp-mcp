@@ -10,13 +10,13 @@
     "id": "1292465385",
     "subfolder": "packages/bundle"
   },
-  "version": "1.0.4",
+  "version": "1.0.5",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@open-state/camping",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

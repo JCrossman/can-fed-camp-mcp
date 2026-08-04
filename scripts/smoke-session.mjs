@@ -39,6 +39,15 @@ export async function verifyPersistentToolSession(client, expected, options = {}
           },
           expect: /equipment types|site|open|availability/i,
         },
+        {
+          name: "get_site_details",
+          arguments: {
+            campground_id: "-2147483644",
+            campsite_id: "-2147475789",
+          },
+          expect: /Site 104/i,
+          validate: validateNativeImages,
+        },
       ]
     : [
         {
@@ -72,6 +81,7 @@ export async function verifyPersistentToolSession(client, expected, options = {}
     if (!call.expect.test(output)) {
       throw new Error(`${call.name} returned unexpected output: ${output.slice(0, 500)}`);
     }
+    call.validate?.(result);
     await assertToolSet(client, expected, `after ${call.name}`);
   }
 }
@@ -97,4 +107,21 @@ function addUtcDays(days) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function validateNativeImages(result) {
+  const images = (result.content ?? []).filter((item) => item.type === "image");
+  if (images.length === 0) {
+    throw new Error("get_site_details returned no native image content.");
+  }
+  if (images.some((image) => image.mimeType !== "image/jpeg" || !image.data)) {
+    throw new Error("get_site_details returned malformed image content.");
+  }
+  if ((result.content ?? []).some((item) => item.type === "resource")) {
+    throw new Error("get_site_details returned legacy embedded resources.");
+  }
+  const resultSize = JSON.stringify(result).length;
+  if (resultSize >= 150_000) {
+    throw new Error(`get_site_details exceeded Claude's result limit (${resultSize}).`);
+  }
 }

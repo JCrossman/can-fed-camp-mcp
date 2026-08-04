@@ -82,7 +82,7 @@ The server speaks MCP over stdio and waits for an assistant to connect.
 Node.js 20 or newer is required. Configure any stdio MCP client to run:
 
 ```bash
-npx --yes @open-state/camping@1.0.4
+npx --yes @open-state/camping@1.0.5
 ```
 
 For upgrades, change the pinned version and restart the client. To uninstall,
